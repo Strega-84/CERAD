@@ -1,0 +1,734 @@
+library(googledrive)
+library(quantregGrowth)
+library(psych)
+library(stringr)
+
+
+
+CERAD <- function(data){
+  ##functions
+  LRfunction <- function(datosLR){
+    MMSE = 100*pnorm(score - (regre$coefficients[1]+(regre$coefficients[2]*eduyear)+
+                                (regre$coefficients[3]*age)+(regre$coefficients[4]*sex)))/sd(regre$residuals)
+    if (MMSE < 2.27) {
+      ejemplo2 = 2.27
+    } else if (MMSE < 6.68) {
+      ejemplo2 = 6.68
+    } else if (MMSE < 15.87) {
+      ejemplo2  = 15.87
+    } else if (MMSE < 50) {
+      ejemplo2  = 50
+    } else if (MMSE < 84.13) {
+      ejemplo2 = 84.13
+    } else if (MMSE < 93.32) {
+      ejemplo2 = 93.32
+    } else if (MMSE < 97.73) {
+      ejemplo2 = 97.73
+    } else if (MMSE > 99) {
+      ejemplo2  = 99
+    } 
+    ejemplo2
+  }
+  QRfunction <- function(datosQR){
+    scores2= (((datosQR[4] - (datosQR[1]+(datosQR[2]*datosQR[6])+
+                                (datosQR[3]*datosQR[7])))/datosQR[8])*15)+100
+    AÑO_ESCO=datosQR[5]
+    Y1 = scores2
+    test = data.frame(AÑO_ESCO,Y1)## test data
+    dataterm = model.matrix(as.formula(regreSCH2$call$formula), data=test) ##data with term
+    dataWterm = cbind(dataterm, test) ##data with terms
+    predictions = t(predict.gcrq(regreSCH2, newdata = dataWterm))
+    results = data.frame(cbind(test$Y1, predictions)) ##predictions
+    esto2=0
+    ##loop to get quantiles
+    for (k in 1:nrow(results)){
+      if (results$V1[k] < results$X0.0227) {
+        esto2 = 2.27
+      } else if (results$V1[k] < results$X0.0668) {
+        esto2 = 6.68
+      } else if (results$V1[k] < results$X0.1587) {
+        esto2 = 15.87
+      } else if (results$V1[k] < results$X0.5) {
+        esto2 = 50
+      } else if (results$V1[k] < results$X0.8413) {
+        esto2 = 84.13
+      } else if (results$V1[k] < results$X0.9332) {
+        esto2 = 93.32
+      } else if (results$V1[k] < results$X0.9773) {
+        esto2 = 97.73
+      } else if (results$V1[k] > results$X0.9773) {
+        esto2 = 99
+      }
+      
+    }
+    esto2
+  }
+  ##data
+  sex = data$data[1]
+  age = data$data[2]
+  eduyear = data$data[3]
+  temp <- tempfile(fileext = ".zip")
+  dl <- drive_download(
+    as_id("1k6mn1_pv0rTTHEgm_NP5j7VFRqYK1FU_"), path = temp, overwrite = TRUE)
+  out <- unzip(temp, exdir = tempdir())
+  data_analisis <- read.csv(out[1], sep = ",")
+  ####MMSE####
+  score = data$data[4]
+  ##LR
+  data_MMSE = data_analisis[,c(1,2,3,4)]
+  data_MMSE <- data_MMSE[-c(2,148,203,208,259,295,312,346), ] ##delete outliers with leverage
+  regre = lm(data = data_MMSE, MMSE ~ AÑO_ESCO + EDAD + SEXO)
+  regre$coefficients[5] = score
+  datosLR = regre$coefficients
+  data[4,3] = LRfunction(datosLR)
+  ##QR
+  regrere = lm(data = data_MMSE, MMSE ~ EDAD + SEXO)
+  residSS = rescale(regrere$residuals, mean=100, sd=15)
+  Y1 = residSS$t.t.scale.x.....sd...mean.
+  regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773),  data = data_MMSE)
+  
+  regrere$coefficients[4]=score
+  regrere$coefficients[5]=eduyear
+  regrere$coefficients[6]=age
+  regrere$coefficients[7]=sex
+  regrere$coefficients[8]=sd(regrere$residuals)
+  datosQR = regrere$coefficients
+
+  data[4,4] = QRfunction(datosQR)
+  ####SF####
+  score = data$data[5]
+  ##LR
+  data_SF = data_analisis[,c(1,2,3,5)]
+  data_SF = na.omit(data_SF) ##eliminate NA
+  data_SF <- data_SF[-c(36,120), ] ##delete outliers with leverage
+  regre = lm(data = data_SF, FLU_VERB ~ AÑO_ESCO + EDAD + SEXO)
+  regre$coefficients[5] = score
+  datosLR = regre$coefficients
+  data[5,3] = LRfunction(datosLR)
+  ##QR
+  regrere = lm(data = data_SF, FLU_VERB ~ EDAD + SEXO)
+  residSS = rescale(regrere$residuals, mean=100, sd=15)
+  Y1 = residSS$t.t.scale.x.....sd...mean.
+  regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                   data = data_SF)
+  regrere$coefficients[4]=score
+  regrere$coefficients[5]=eduyear
+  regrere$coefficients[6]=age
+  regrere$coefficients[7]=sex
+  regrere$coefficients[8]=sd(regrere$residuals)
+  datosQR = regrere$coefficients
+  
+  data[5,4] = QRfunction(datosQR)
+  ####naming####
+score = data$data[6]
+##LR
+data_NA = data_analisis[,c(1,2,3,6)]
+data_NA <- data_NA[-c(2,160,255,295,296,374), ] ##delete outliers with leverage
+regre = lm(data = data_NA, DENOMINACIÓN ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[6,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_NA, DENOMINACIÓN ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_NA)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[6,4] = QRfunction(datosQR)
+
+  ####WLMrecall####
+score = data$data[7]
+##LR
+data_WLMrecall = data_analisis[,c(1,2,3,7)]
+data_WLMrecall <- data_WLMrecall[-c(198,311), ] ##delete outliers with leverage
+regre = lm(data = data_WLMrecall, TOTAL_EVOC ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[7,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_WLMrecall, TOTAL_EVOC ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_WLMrecall)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[7,4] = QRfunction(datosQR)
+  ####WLMdelayed####
+score = data$data[8]
+##LR
+data_WLMdelayed = data_analisis[,c(1,2,3,8)]
+data_WLMdelayed <- data_WLMdelayed[-c(78,301), ] ##delete outliers with leverage
+regre = lm(data = data_WLMdelayed, RECUERDO_LP ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[8,3] = LRfunction(datosLR)
+
+##QR
+regrere = lm(data = data_WLMdelayed, RECUERDO_LP ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_WLMdelayed)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[8,4] = QRfunction(datosQR)
+  ####WLMrecognition####
+  score = data$data[9]
+  ##LR
+  data_WLMrecog = data_analisis[,c(1,2,3,9)]
+  data_WLMrecog <- data_WLMrecog[-c(52,56,254,259,301,321), ] ##delete outliers with leverage
+  regre = lm(data = data_WLMrecog, RECONOCIMIENTO_LP_TOTAL ~ AÑO_ESCO + EDAD + SEXO)
+  regre$coefficients[5] = score
+  datosLR = regre$coefficients
+  data[9,3] = LRfunction(datosLR)
+  #QR
+  regrere = lm(data = data_WLMrecog, RECONOCIMIENTO_LP_TOTAL ~ EDAD + SEXO)
+  residSS = rescale(regrere$residuals, mean=100, sd=15)
+  Y1 = residSS$t.t.scale.x.....sd...mean.
+  regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                   data = data_WLMrecog)
+  regrere$coefficients[4]=score
+  regrere$coefficients[5]=eduyear
+  regrere$coefficients[6]=age
+  regrere$coefficients[7]=sex
+  regrere$coefficients[8]=sd(regrere$residuals)
+  datosQR = regrere$coefficients
+  
+  data[9,4] = QRfunction(datosQR)
+  ####MIS####
+score = data$data[10]
+##LR
+data_MIS = data_analisis[,c(1,2,3,10)]
+data_MIS <- data_MIS[-c(2,  56, 237), ] ##delete outliers with leverage
+regre = lm(data = data_MIS, MIS_TOTAL ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[10,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_MIS, MIS_TOTAL ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_MIS)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[10,4] = QRfunction(datosQR)
+  ####MCT-1####
+score = data$data[11]
+##LR
+data_MCT1 = data_analisis[,c(1,2,3,11)]
+data_MCT1 <- data_MCT1[-c(2 , 12, 123, 254, 259, 346, 361), ] ##delete outliers with leverage
+regre = lm(data = data_MCT1, MCT_TOTAL_LIST1 ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[11,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_MCT1, MCT_TOTAL_LIST1 ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_MCT1)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[11,4] = QRfunction(datosQR)
+  ####MCT-2####
+score = data$data[12]
+##LR
+data_MCT2 = data_analisis[,c(1,2,3,12)]
+data_MCT2 <- data_MCT2[-c(2  ,12 ,139, 140, 160, 259), ] ##delete outliers with leverage
+regre = lm(data = data_MCT2, MCT_TOTAL_LIST2 ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[12,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_MCT2, MCT_TOTAL_LIST2 ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_MCT2)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[12,4] = QRfunction(datosQR)
+  ####MCT 1 & 2-1####
+score = data$data[13]
+##LR
+data_MCT22y1 = data_analisis[,c(1,2,3,13)]
+data_MCT22y1 <- data_MCT22y1[-c( 2,  12, 107, 154, 259, 361), ] ##delete outliers with leverage
+regre = lm(data = data_MCT22y1, MCT_REC2L_TOTAL_L1 ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[13,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_MCT22y1, MCT_REC2L_TOTAL_L1 ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_MCT22y1)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+data[13,4] = QRfunction(datosQR)
+  ####MCT 1 & 2-2####
+score = data$data[14]
+##LR
+data_MCT22y2 = data_analisis[,c(1,2,3,14)]
+data_MCT22y2 <- data_MCT22y2[-c(2  ,12,  72, 123, 151, 259, 342, 346, 348 ), ] ##delete outliers with leverage
+regre = lm(data = data_MCT22y2, MCT_REC2L_TOTAL_L2 ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[14,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_MCT22y2, MCT_REC2L_TOTAL_L2 ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_MCT22y2)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[14,4] = QRfunction(datosQR)
+  ####MCT free recall####
+score = data$data[15]
+##LR
+data_MCTfr = data_analisis[,c(1,2,3,15)]
+data_MCTfr = na.omit(data_MCTfr)
+data_MCTfr <- data_MCTfr[-c(270 ), ] ##delete outliers with leverage
+regre = lm(data = data_MCTfr, MCT_REClibr_TOTAL ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[15,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_MCTfr, MCT_REClibr_TOTAL ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_MCTfr)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+data[15,4] = QRfunction(datosQR)
+  ####CP copy####
+score = data$data[16]
+##LR
+data_CPc = data_analisis[,c(1,2,3,16)]
+data_CPc <- data_CPc[-c(2,124), ] ##delete outliers with leverage
+regre = lm(data = data_CPc, TOTAL_PRAX_COP ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[16,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_CPc, TOTAL_PRAX_COP ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_CPc)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[16,4] = QRfunction(datosQR)
+  ####CF copy####
+score = data$data[17]
+##LR
+data_CFc = data_analisis[,c(1,2,3,17)]
+data_CFc <- data_CFc[-c(52 ,313, 359), ] ##delete outliers with leverage
+regre = lm(data = data_CFc, FIG_REY_PUNTAJE_COP ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[17,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_CFc, FIG_REY_PUNTAJE_COP ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_CFc)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[17,4] = QRfunction(datosQR)
+  ####CF time copy####
+score = data$data[18]
+##LR
+data_CFtc = data_analisis[,c(1,2,3,18)]
+data_CFtc$FIG_REY_TIEMPO_COP[data_CFtc$FIG_REY_TIEMPO_COP>1000] = NA
+data_CFtc$FIG_REY_TIEMPO_COP[data_CFtc$FIG_REY_TIEMPO_COP<40] = NA
+data_CFtc= na.omit(data_CFtc)
+data_CFtc$FIG_REY_TIEMPO_COP = data_CFtc$FIG_REY_TIEMPO_COP*-1
+data_CFtc <- data_CFtc[-c(117, 150, 302, 312, 324), ] ##delete outliers with leverage
+regre = lm(data = data_CFtc, FIG_REY_TIEMPO_COP ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[18,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_CFtc, FIG_REY_TIEMPO_COP ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_CFtc)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[18,4] = QRfunction(datosQR)
+  ####CP recall####
+score = data$data[19]
+##LR
+data_CPrecall = data_analisis[,c(1,2,3,19)]
+data_CPrecall <- data_CPrecall[-c(124), ] ##delete outliers with leverage
+regre = lm(data = data_CPrecall, TOTAL_PRAX_EVO ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[19,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_CPrecall, TOTAL_PRAX_EVO ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_CPrecall)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+data[19,4] = QRfunction(datosQR)
+  ####CF recall####
+score = data$data[20]
+##LR
+data_CFrecall = data_analisis[,c(1,2,3,20)]
+data_CFrecall$FIG_REY_PUNTAJE_EVO[data_CFrecall$FIG_REY_PUNTAJE_EVO>37] = NA
+data_CFrecall = na.omit(data_CFrecall)
+regre = lm(data = data_CFrecall, FIG_REY_PUNTAJE_EVO ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[20,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_CFrecall, FIG_REY_PUNTAJE_EVO ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_CFrecall)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[20,4] = QRfunction(datosQR)
+  ####CF time recall####
+score = data$data[21]
+##LR
+data_CFtrecall = data_analisis[,c(1,2,3,21)]
+data_CFtrecall[data_CFtrecall>800] = NA
+data_CFtrecall = na.omit(data_CFtrecall)
+data_CFtrecall$FIG_REY_TIEMPO_EVO = data_CFtrecall$FIG_REY_TIEMPO_EVO*-1
+data_CFtrecall = data_CFtrecall[-c( 3, 162, 201, 315, 327, 377 ),] 
+regre = lm(data = data_CFtrecall, FIG_REY_TIEMPO_EVO ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[21,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_CFtrecall, FIG_REY_TIEMPO_EVO ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_CFtrecall)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[21,4] = QRfunction(datosQR)
+  ####Raven-A####
+score = data$data[22]
+##LR
+data_raven = data_analisis[,c(1,2,3,22)]
+data_raven = data_raven[-c( 321 ),] 
+regre = lm(data = data_raven, RAVEN_TOTAL ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[22,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_raven, RAVEN_TOTAL ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_raven)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[22,4] = QRfunction(datosQR)
+  ####MCST Correct####
+score = data$data[23]
+##LR
+data_MCSTC = data_analisis[,c(1,2,3,23)]
+regre = lm(data = data_MCSTC, WISCON_ACIERTOS ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[23,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_MCSTC, WISCON_ACIERTOS ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_MCSTC)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[23,4] = QRfunction(datosQR)
+  ####MCST Category####
+score = data$data[24]
+##LR
+data_MCSTCat = data_analisis[,c(1,2,3,24)]
+regre = lm(data = data_MCSTCat, WISCON_CATEGORIA ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[24,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_MCSTCat, WISCON_CATEGORIA ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_MCSTCat)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[24,4] = QRfunction(datosQR)
+  ####MCST Perseverations####
+score = data$data[25]
+##LR
+data_MCSTP = data_analisis[,c(1,2,3,25)]
+data_MCSTP$WISCON_PER = data_MCSTP$WISCON_PER*-1
+data_MCSTP = data_MCSTP[-c(181, 254, 344, 360 ),] 
+regre = lm(data = data_MCSTP, WISCON_PER ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[25,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_MCSTP, WISCON_PER ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_MCSTP)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[25,4] = QRfunction(datosQR)
+  ####FAS-F####
+score = data$data[26]
+##LR
+data_FASF = data_analisis[,c(1,2,3,26)]
+data_FASF = data_FASF[-c(132, 328),] 
+regre = lm(data = data_FASF, FV_FONO_F_TOTAL_CORRECT ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[26,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_FASF, FV_FONO_F_TOTAL_CORRECT ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_FASF)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[26,4] = QRfunction(datosQR)
+  ####FAS-A####
+score = data$data[27]
+##LR
+data_FASA = data_analisis[,c(1,2,3,27)]
+data_FASA = data_FASA[-c(132, 173),] 
+regre = lm(data = data_FASA, FV_FONO_A_TOTAL_CORRECT ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[27,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_FASA, FV_FONO_A_TOTAL_CORRECT ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_FASA)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[27,4] = QRfunction(datosQR)
+  ####FAS-S####
+score = data$data[28]
+##LR
+data_FASS = data_analisis[,c(1,2,3,28)]
+data_FASS = data_FASS[-c(333),] 
+regre = lm(data = data_FASS, FV_FONO_S_TOTAL_CORRECT ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[28,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_FASS, FV_FONO_S_TOTAL_CORRECT ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_FASS)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+data[28,4] = QRfunction(datosQR)
+  ####DSC####
+score = data$data[29]
+##LR
+data_DSC = data_analisis[,c(1,2,3,29)]
+data_DSC = data_DSC[-c(116),] 
+regre = lm(data = data_DSC, DIGITOS_SIMB_TOTAL ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[29,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_DSC, DIGITOS_SIMB_TOTAL ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_DSC)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[29,4] = QRfunction(datosQR)
+  ####TMT-A score####
+score = data$data[30]
+##LR
+data_TMTA = data_analisis[,c(1,2,3,30)]
+data_TMTA = data_TMTA[-c(3 , 69 ,150, 176, 238, 287, 294, 303, 332 ),] 
+regre = lm(data = data_TMTA, TMT_ACIERTOS ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[30,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_TMTA, TMT_ACIERTOS ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_TMTA)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[30,4] = QRfunction(datosQR)
+  ####TMT-A time####
+score = data$data[31]
+##LR
+data_TMTT = data_analisis[,c(1,2,3,31)]
+data_TMTT$TMT_TIEMPO[data_TMTT$TMT_TIEMPO<15] = NA
+data_TMTT$TMT_TIEMPO = data_TMTT$TMT_TIEMPO*-1
+data_TMTT = na.omit(data_TMTT)
+data_TMTT = data_TMTT[-c( 42 ,149 ,150 ,161 ,358, 387  ),] 
+regre = lm(data = data_TMTT, TMT_TIEMPO ~ AÑO_ESCO + EDAD + SEXO)
+regre$coefficients[5] = score
+datosLR = regre$coefficients
+data[31,3] = LRfunction(datosLR)
+##QR
+regrere = lm(data = data_TMTT, TMT_TIEMPO ~ EDAD + SEXO)
+residSS = rescale(regrere$residuals, mean=100, sd=15)
+Y1 = residSS$t.t.scale.x.....sd...mean.
+regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+                 data = data_TMTT)
+regrere$coefficients[4]=score
+regrere$coefficients[5]=eduyear
+regrere$coefficients[6]=age
+regrere$coefficients[7]=sex
+regrere$coefficients[8]=sd(regrere$residuals)
+datosQR = regrere$coefficients
+
+data[31,4] = QRfunction(datosQR)
+####
+
+
+write.csv(data, file="CERADscores.csv")
+}
+CERAD(data)
