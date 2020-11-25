@@ -6,6 +6,7 @@ library(psych)
 library(stringr)
 
 ##first download and fill the CERAD .csv file with CERAD raw scores
+##instructions and examples are in the csv file
 ##https://drive.google.com/file/d/1beXGuE9nUJjSNtMZzOonuEpUnWGjp0D4/view?usp=sharing
 ## to get data, next as an example
 ##data = read.csv("./data/CERADrawscores.csv")
