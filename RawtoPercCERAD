@@ -1,34 +1,41 @@
+##packages to use
+
 library(googledrive)
 library(quantregGrowth)
 library(psych)
 library(stringr)
 
-
+##first download and fill the CERAD .csv file with CERAD raw scores
+##https://drive.google.com/file/d/1beXGuE9nUJjSNtMZzOonuEpUnWGjp0D4/view?usp=sharing
+## to get data, next as an example
+##data = read.csv("./data/CERADrawscores.csv")
 
 CERAD <- function(data){
   ##functions
+  ##function to obtain linear regression percentiles
   LRfunction <- function(datosLR){
-    MMSE = 100*pnorm(score - (regre$coefficients[1]+(regre$coefficients[2]*eduyear)+
+    perc = 100*pnorm(score - (regre$coefficients[1]+(regre$coefficients[2]*eduyear)+
                                 (regre$coefficients[3]*age)+(regre$coefficients[4]*sex)))/sd(regre$residuals)
-    if (MMSE < 2.27) {
-      ejemplo2 = 2.27
-    } else if (MMSE < 6.68) {
-      ejemplo2 = 6.68
-    } else if (MMSE < 15.87) {
-      ejemplo2  = 15.87
-    } else if (MMSE < 50) {
-      ejemplo2  = 50
-    } else if (MMSE < 84.13) {
-      ejemplo2 = 84.13
-    } else if (MMSE < 93.32) {
-      ejemplo2 = 93.32
-    } else if (MMSE < 97.73) {
-      ejemplo2 = 97.73
-    } else if (MMSE > 99) {
-      ejemplo2  = 99
+    if (perc < 2.27) {
+      percout = 2.27
+    } else if (perc < 6.68) {
+      percout = 6.68
+    } else if (perc < 15.87) {
+      percout  = 15.87
+    } else if (perc < 50) {
+      percout  = 50
+    } else if (perc < 84.13) {
+      percout = 84.13
+    } else if (perc < 93.32) {
+      percout = 93.32
+    } else if (perc < 97.73) {
+      percout = 97.73
+    } else if (perc > 99) {
+      percout  = 99
     } 
-    ejemplo2
+    percout
   }
+  ##function to obtain non-linear quantile regression percentiles
   QRfunction <- function(datosQR){
     scores2= (((datosQR[4] - (datosQR[1]+(datosQR[2]*datosQR[6])+
                                 (datosQR[3]*datosQR[7])))/datosQR[8])*15)+100
@@ -39,61 +46,67 @@ CERAD <- function(data){
     dataWterm = cbind(dataterm, test) ##data with terms
     predictions = t(predict.gcrq(regreSCH2, newdata = dataWterm))
     results = data.frame(cbind(test$Y1, predictions)) ##predictions
-    esto2=0
+    percout2=0
     ##loop to get quantiles
     for (k in 1:nrow(results)){
       if (results$V1[k] < results$X0.0227) {
-        esto2 = 2.27
+        percout2 = 2.27
       } else if (results$V1[k] < results$X0.0668) {
-        esto2 = 6.68
+        percout2 = 6.68
       } else if (results$V1[k] < results$X0.1587) {
-        esto2 = 15.87
+        percout2 = 15.87
       } else if (results$V1[k] < results$X0.5) {
-        esto2 = 50
+        percout2 = 50
       } else if (results$V1[k] < results$X0.8413) {
-        esto2 = 84.13
+        percout2 = 84.13
       } else if (results$V1[k] < results$X0.9332) {
-        esto2 = 93.32
+        percout2 = 93.32
       } else if (results$V1[k] < results$X0.9773) {
-        esto2 = 97.73
+        percout2 = 97.73
       } else if (results$V1[k] > results$X0.9773) {
-        esto2 = 99
+        percout2 = 99
       }
       
     }
-    esto2
+    percout2
   }
-  ##data
+  ##data from raw scores file
   sex = data$data[1]
   age = data$data[2]
   eduyear = data$data[3]
+  ##data base from mexican CERAD application. To obtain non-linear quantile
+  ##regression percentiles
   temp <- tempfile(fileext = ".zip")
   dl <- drive_download(
     as_id("1k6mn1_pv0rTTHEgm_NP5j7VFRqYK1FU_"), path = temp, overwrite = TRUE)
   out <- unzip(temp, exdir = tempdir())
   data_analisis <- read.csv(out[1], sep = ",")
+  ##analysis by task. All of them has the same procedure. However, some measures
+  ##has different number of missing values and/or differente number of outliers
+  ##with high leverage
   ####MMSE####
-  score = data$data[4]
-  ##LR
-  data_MMSE = data_analisis[,c(1,2,3,4)]
+  score = data$data[4]##raw score from raw score csv
+  ##LR part
+  data_MMSE = data_analisis[,c(1,2,3,4)] ##database for MMSE task
   data_MMSE <- data_MMSE[-c(2,148,203,208,259,295,312,346), ] ##delete outliers with leverage
-  regre = lm(data = data_MMSE, MMSE ~ AÑO_ESCO + EDAD + SEXO)
+  regre = lm(data = data_MMSE, MMSE ~ AÑO_ESCO + EDAD + SEXO) ##LR model for percentiles
+  ##data to introduce in the LR percentile function
   regre$coefficients[5] = score
   datosLR = regre$coefficients
   data[4,3] = LRfunction(datosLR)
-  ##QR
-  regrere = lm(data = data_MMSE, MMSE ~ EDAD + SEXO)
-  residSS = rescale(regrere$residuals, mean=100, sd=15)
-  Y1 = residSS$t.t.scale.x.....sd...mean.
+  ##QR part
+  regrere = lm(data = data_MMSE, MMSE ~ EDAD + SEXO)##model to extract the age and sex effect
+  residSS = rescale(regrere$residuals, mean=100, sd=15) ##rescale model residuals after extracting age and sex effect
+  Y1 = residSS$t.t.scale.x.....sd...mean. ##obtain vector with rescale residuals
+  ##formula for non-linear quantile regression
   regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773),  data = data_MMSE)
-  
+  ##data to introduce in non-linear quantile regression percentile function
   regrere$coefficients[4]=score
   regrere$coefficients[5]=eduyear
   regrere$coefficients[6]=age
   regrere$coefficients[7]=sex
   regrere$coefficients[8]=sd(regrere$residuals)
   datosQR = regrere$coefficients
-
   data[4,4] = QRfunction(datosQR)
   ####SF####
   score = data$data[5]
@@ -731,4 +744,5 @@ data[31,4] = QRfunction(datosQR)
 
 write.csv(data, file="CERADscores.csv")
 }
+##file will be in project folder
 CERAD(data)
