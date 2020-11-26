@@ -8,7 +8,7 @@ library(stringr)
 ##first download and fill the CERAD .csv file with CERAD raw scores
 ##https://drive.google.com/file/d/1beXGuE9nUJjSNtMZzOonuEpUnWGjp0D4/view?usp=sharing
 ## to get data, next as an example
-dataCERAD = read.csv("C:/Users/ae_ka/Desktop/CERADrawscores.csv")
+##dataCERAD = read.csv("./data/CERADrawscores.csv")
 
 CERAD <- function(dataCERAD){
   ##functions
