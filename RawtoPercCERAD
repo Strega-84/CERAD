@@ -1,14 +1,19 @@
 ##packages to use
-
+install.packages(c("googledrive", "quantregGrowth", "psych", "stringr"))
 library(googledrive)
 library(quantregGrowth)
 library(psych)
 library(stringr)
 
-##first download and fill the CERAD .csv file with CERAD raw scores
+##first download and fill the CERAD .csv file with your CERAD raw scores
 ##https://drive.google.com/file/d/1beXGuE9nUJjSNtMZzOonuEpUnWGjp0D4/view?usp=sharing
-## to get data, next as an example
+## to get data into R, take next lane as an example
 ##dataCERAD = read.csv("./data/CERADrawscores.csv")
+
+##The code will request access to a Google account, so it is required to be connected 
+##to the internet and to accept the request to download the necessary database.
+
+##after load the code you have to run CERAD(dataCERAD)
 
 CERAD <- function(dataCERAD){
   ##functions
