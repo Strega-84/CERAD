@@ -313,7 +313,7 @@ CERAD <- function(dataCERAD){
   regrere = lm(data = data_MCT22y1, MCT_REC2L_TOTAL_L1 ~ EDAD + SEXO)
   residSS = rescale(regrere$residuals, mean=100, sd=15)
   Y1 = residSS$t.t.scale.x.....sd...mean.
-  regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), res=TRUE, tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
+  regreSCH2 = gcrq(Y1~ps(AÑO_ESCO, monotone = 1, lambda = 3, d = 4), tau = c(.0227, 0.0668, .1587,.5,.8413,.9332,.9773), 
                    data = data_MCT22y1)
   regrere$coefficients[4]=score
   regrere$coefficients[5]=eduyear
